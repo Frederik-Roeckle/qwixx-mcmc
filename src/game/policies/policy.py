@@ -1,39 +1,63 @@
 # defines the policy which should be followed to play the game
+#
+# Greedy policy: for every possible dice combination compute how many fields
+# would be skipped in the target row and take the move with the smallest skip.
+# A move is only taken if it skips at most `max_skip` fields
+# (max_skip=None -> always take the best legal move).
+
+WHITE_DICES = ("W1", "W2")
+
 
 class Policy():
 
-    def __init__(self):
-        pass
+    def __init__(self, max_skip=None):
+        self.max_skip = max_skip
 
-    def act(self, dices, rows):
+    @staticmethod
+    def _dice_values(dices):
         dices_values = {}
         for dice in dices:
-            # print(dice._get_repr())
             dices_values = dices_values | dice._get_repr()
-        sum_of_whites = dices_values["W1"] + dices_values["W2"]
-        sum_of_reds = (dices_values["W1"] + dices_values["R1"], dices_values["W2"] + dices_values["R1"])
-        sum_of_greens = (dices_values["W1"] + dices_values["G1"], dices_values["W2"] + dices_values["G1"])
-        sum_of_blues = (dices_values["W1"] + dices_values["B1"], dices_values["W2"] + dices_values["B1"])
-        sum_of_yellows = (dices_values["W1"] + dices_values["Y1"], dices_values["W2"] + dices_values["Y1"])
-        print(f"w: {sum_of_whites}, reds: {sum_of_reds}, blues: {sum_of_blues}, greens: {sum_of_greens}, yellows: {sum_of_yellows}")
+        return dices_values
 
-        rows_values = {}
-        for row in rows:
-                rows_values[row.color] = row
-                # print(row._get_repr())
-        print(rows_values)
+    def _best(self, candidates):
+        """candidates: list of (order_idx, row, number). Returns (row, number) or None."""
+        best = None
+        best_key = None
+        for order_idx, row, number in candidates:
+            if not row.can_cross(number):
+                continue
+            skip = row.skip_count(number)
+            if self.max_skip is not None and skip > self.max_skip:
+                continue
+            # smallest skip first, then the row closer to locking, then fixed order
+            key = (skip, -row.crosses, order_idx)
+            if best_key is None or key < best_key:
+                best_key = key
+                best = (row, number)
+        return best
 
+    def choose_white(self, values, rows):
+        """Step 1: sum of both white dices, may be crossed in any row."""
+        sum_of_whites = values["W1"] + values["W2"]
+        return self._best([(i, row, sum_of_whites) for i, row in enumerate(rows)])
 
-        # 1. check if white sum can be placed
-        # min diff for a color
+    def choose_color(self, values, rows):
+        """Step 2: one white dice + the dice of the row's color."""
+        candidates = []
+        for i, row in enumerate(rows):
+            for w in WHITE_DICES:
+                candidates.append((i, row, values[w] + values[row.color]))
+        return self._best(candidates)
 
-        # min_diffs = {Color:[Wert, Diff, w/c/wc]}
-        for k,v in rows_values.items():
-            # print(k, v)
-            diff = v.largest_crossed_number - sum_of_whites
-            print(f"diff {v.color}: {diff}")
-
-        # 2. check if color sum can be placed
-
-        # 3. if nothing, check a box
-        pass
+    def act(self, dices, rows):
+        """Plays a full turn (white step, then color step). Returns the crosses made."""
+        values = self._dice_values(dices)
+        moves = []
+        for choose in (self.choose_white, self.choose_color):
+            move = choose(values, rows)
+            if move is not None:
+                row, number = move
+                row.cross(number)
+                moves.append((row.color, number))
+        return moves
