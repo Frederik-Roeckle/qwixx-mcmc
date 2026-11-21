@@ -41,13 +41,16 @@ PENALTY_POINTS = 5
 
 class Game():
 
-    def __init__(self, no_sides_dice=6, no_numbers=12, policy=None, max_rounds=None):
+    def __init__(self, no_sides_dice=6, no_numbers=12, policy=None, max_rounds=None,
+                 stop_on_penalty=False):
         self.no_numbers = no_numbers
         self.no_sides_dice = no_sides_dice
         self.dices = [Dice(color, self.no_sides_dice) for color in DICE_COLORS]
         self.rows = [Row(self.no_numbers, color, order=ROW_ORDER[color]) for color in ROW_COLORS]
         self.policy = policy if policy is not None else Policy()
         self.max_rounds = max_rounds
+        # end the game as soon as the first penalty is due (hunting perfect games)
+        self.stop_on_penalty = stop_on_penalty
         self.penalties = 0
         self.rounds = 0
 
@@ -66,6 +69,9 @@ class Game():
                 dice_values = {d.color: d.face_value for d in self.dices}
                 logger.debug("round %d dice=%s moves=%s%s", self.rounds, dice_values,
                              moves, "" if moves else " -> penalty")
+
+            if self.penalties and self.stop_on_penalty:
+                break
 
         result = self.result()
         if debug:
