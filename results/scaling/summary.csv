@@ -1,0 +1,2 @@
+name,sides,fields,max_crosses,status,episodes,perfect_hits,p_perfect,p_perfect_upper95,best_crosses,mean_crosses,p_ge_50pct_0pen,p_ge_75pct_0pen,p_ge_90pct_0pen,p_ge_100pct_0pen
+d2,2,3,14,interrupted,11900000,23412,0.001967394957983193,0.0019925717697248393,14,8.137376722689076,0.7066093277310924,0.11563487394957983,0.005244033613445378,0.001967394957983193

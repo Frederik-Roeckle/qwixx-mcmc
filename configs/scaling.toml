@@ -1,0 +1,160 @@
+# Qwixx dice-size scaling study
+# =============================
+# Question: how does the probability of a perfect game (maximum number of
+# crosses, 0 penalties) scale with the number of sides N per dice?
+#
+# Board geometry follows from N: every row holds all sums of two dice,
+# i.e. the numbers 2..2N  ->  F = 2N - 1 fields per row.
+#
+#   sides N | numbers | fields F | lock rule (N-1) | max crosses (2-row end) | open end
+#   --------+---------+----------+-----------------+-------------------------+---------
+#      2    |  2..4   |     3    |        1        |           14            |    16
+#      3    |  2..6   |     5    |        2        |           22            |    24
+#      4    |  2..8   |     7    |        3        |           30            |    32
+#      5    |  2..10  |     9    |        4        |           38            |    40
+#      6    |  2..12  |    11    |        5        |           46            |    48   <- original game
+#      7    |  2..14  |    13    |        6        |           54            |    56
+#      8    |  2..16  |    15    |        7        |           62            |    64
+#      9    |  2..18  |    17    |        8        |           70            |    72
+#     10    |  2..20  |    19    |        9        |           78            |    80
+#     12    |  2..24  |    23    |       11        |           94            |    96
+#
+# max crosses with the official end rule (game over after the turn that locks
+# the 2nd row): 3 locked rows (F + 1 each, the last two locked in the same turn)
+# + 1 row with F - 1 crosses = 4F + 2.  Open end (max_locked_rows = "none"): 4(F + 1).
+#
+# Run (from src/game):
+#   python scaling.py ../../configs/scaling.toml                 # all enabled scenarios
+#   python scaling.py ../../configs/scaling.toml --only d4 d5    # a subset
+#   python scaling.py ../../configs/scaling.toml --dry-run       # print the plan only
+# A run can be stopped with Ctrl+C at any time; the next start resumes every
+# scenario from its last checkpoint. Finished scenarios are skipped
+# (use --restart to throw a checkpoint away).
+
+[run]
+results_dir  = "../results/scaling"   # relative to this file
+workers      = 0                      # 0 = os.cpu_count()
+chunk_size   = 100_000                # games per worker task
+report_every = 100_000_000            # log + checkpoint every N games
+seed         = 0
+
+# Defaults for every scenario; each [[scenario]] may override any key.
+[defaults]
+policy_max_skip  = 0        # greedy policy: only take moves that skip <= max_skip fields ("none" = any)
+max_locked_rows  = 2        # official rule: game ends with the 2nd locked row ("none" = open end)
+max_penalties    = 1        # 1 = stop at the first penalty (a perfect game has 0 anyway, much faster);
+                            # 4 = official rule (changes the crosses histogram, not P(perfect))
+max_rounds       = "none"
+
+# Episode budget and convergence criterion
+min_episodes     = 1_000_000          # never stop before this many games
+max_episodes     = 20_000_000_000     # hard budget (10 billion)
+target_hits      = 50                 # perfect games wanted before a scenario counts as converged
+max_rel_error    = 0.30               # wanted relative std error of P(perfect), ~1/sqrt(hits)
+
+# ---------------------------------------------------------------------------
+# Scenarios. `fields` and `min_crosses_to_lock` may be omitted; they then
+# default to 2N - 1 and N - 1. They are written out here for documentation.
+# Small boards converge fast, so their budgets are much smaller.
+# ---------------------------------------------------------------------------
+
+[[scenario]]
+name                = "d2"
+sides               = 2
+fields              = 3
+min_crosses_to_lock = 1
+min_episodes        = 100_000
+max_episodes        = 100_000_000
+target_hits         = 10_000
+
+[[scenario]]
+name                = "d3"
+sides               = 3
+fields              = 5
+min_crosses_to_lock = 2
+min_episodes        = 1_000_000
+max_episodes        = 1_000_000_000
+target_hits         = 10_000
+
+[[scenario]]
+name                = "d4"
+sides               = 4
+fields              = 7
+min_crosses_to_lock = 3
+min_episodes        = 10_000_000
+max_episodes        = 10_000_000_000
+target_hits         = 1_000
+
+[[scenario]]
+name                = "d5"
+sides               = 5
+fields              = 9
+min_crosses_to_lock = 4
+min_episodes        = 100_000_000
+max_episodes        = 10_000_000_000
+target_hits         = 100
+
+[[scenario]]
+name                = "d6"                 # original Qwixx board
+sides               = 6
+fields              = 11
+min_crosses_to_lock = 5
+min_episodes        = 1_000_000_000
+max_episodes        = 20_000_000_000
+target_hits         = 10
+
+[[scenario]]
+name                = "d7"
+sides               = 7
+fields              = 13
+min_crosses_to_lock = 6
+min_episodes        = 1_000_000_000
+max_episodes        = 40_000_000_000
+target_hits         = 1
+
+[[scenario]]
+name                = "d8"
+sides               = 8
+fields              = 15
+min_crosses_to_lock = 7
+min_episodes        = 1_000_000_000
+max_episodes        = 10_000_000_000
+target_hits         = 1
+
+[[scenario]]
+name                = "d9"
+sides               = 9
+fields              = 17
+min_crosses_to_lock = 8
+min_episodes        = 1_000_000_000
+max_episodes        = 10_000_000_000
+target_hits         = 1
+
+[[scenario]]
+name                = "d10"
+sides               = 10
+fields              = 19
+min_crosses_to_lock = 9
+min_episodes        = 1_000_000_000
+max_episodes        = 10_000_000_000
+target_hits         = 1
+
+[[scenario]]
+name                = "d12"
+sides               = 12
+fields              = 23
+min_crosses_to_lock = 11
+min_episodes        = 1_000_000_000
+max_episodes        = 10_000_000_000
+target_hits         = 1
+
+# Reference: the old open-end rules of the first 31 billion game run
+# (no end after 2 locked rows, max 48 crosses). Disabled by default.
+[[scenario]]
+name                = "d6_open_end"
+enabled             = false
+sides               = 6
+max_locked_rows     = "none"
+min_episodes        = 1_000_000_000
+max_episodes        = 10_000_000_000
+target_hits         = 1

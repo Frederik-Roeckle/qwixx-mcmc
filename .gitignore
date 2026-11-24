@@ -1,2 +1,5 @@
 .venv/
 __pycache__/
+# scaling study checkpoints (results JSON/CSV stay versionable)
+results/**/*.ckpt.pkl
+*.tmp

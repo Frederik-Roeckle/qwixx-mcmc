@@ -46,8 +46,12 @@ class Policy():
         """Step 2: one white dice + the dice of the row's color."""
         candidates = []
         for i, row in enumerate(rows):
+            color_value = values.get(row.color)
+            if color_value is None:
+                # dice was removed from the game because its row is locked
+                continue
             for w in WHITE_DICES:
-                candidates.append((i, row, values[w] + values[row.color]))
+                candidates.append((i, row, values[w] + color_value))
         return self._best(candidates)
 
     def act(self, dices, rows):
